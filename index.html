@@ -77,79 +77,309 @@ footer{max-width:1440px;margin:0 auto;padding:0 16px 20px;color:var(--muted);fon
 </main>
 <footer>Prototype awal • Tiada dagangan automatik • Tiada nasihat kewangan • Harga dan signal hanya boleh dipercayai selepas sumber data dan logik disahkan.</footer>
 <script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
+
 <script>
 (function(){
-  const el=document.getElementById('chart');
-  const chart=LightweightCharts.createChart(el,{
-    width:el.clientWidth,height:500,
-    layout:{background:{type:'solid',color:'#111827'},textColor:'#aab7ca'},
-    grid:{vertLines:{color:'#1d293a'},horzLines:{color:'#1d293a'}},
-    rightPriceScale:{borderColor:'#344155'},
-    timeScale:{borderColor:'#344155',timeVisible:true,secondsVisible:false},
-    crosshair:{mode:LightweightCharts.CrosshairMode.Normal}
+  const el = document.getElementById('chart');
+
+  const chart = LightweightCharts.createChart(el, {
+    width: el.clientWidth,
+    height: 500,
+    layout: {
+      background: { type: 'solid', color: '#111827' },
+      textColor: '#aab7ca'
+    },
+    grid: {
+      vertLines: { color: '#1d293a' },
+      horzLines: { color: '#1d293a' }
+    },
+    rightPriceScale: { borderColor: '#344155' },
+    timeScale: {
+      borderColor: '#344155',
+      timeVisible: true,
+      secondsVisible: false
+    }
   });
-  const candles=chart.addCandlestickSeries({
-    upColor:'#27c281',downColor:'#f05c6c',borderUpColor:'#27c281',
-    borderDownColor:'#f05c6c',wickUpColor:'#27c281',wickDownColor:'#f05c6c'
+
+  const candles = chart.addCandlestickSeries({
+    upColor: '#27c281',
+    downColor: '#f05c6c',
+    borderUpColor: '#27c281',
+    borderDownColor: '#f05c6c',
+    wickUpColor: '#27c281',
+    wickDownColor: '#f05c6c'
   });
-  window.addEventListener('resize',()=>chart.applyOptions({width:el.clientWidth}));
-  let currentTf=5;
-  document.querySelectorAll('.tf').forEach(btn=>btn.addEventListener('click',()=>{
-    document.querySelectorAll('.tf').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');currentTf=Number(btn.dataset.tf);
-    document.getElementById('tfLabel').textContent=({5:'M5',15:'M15',60:'H1',240:'H4'})[currentTf];
-    document.getElementById('csvMessage').textContent='Timeframe dipilih: '+document.getElementById('tfLabel').textContent+'. CSV tidak akan diagregatkan secara automatik.';
-  }));
-  document.getElementById('providerInfo').addEventListener('click',()=>{
-    const p=document.getElementById('provider').value;
-    const urls={tickerlayer:'https://tickerlayer.com/symbols/xauusd',xauapi:'https://xauapi.com/',custom:'https://twelvedata.com/docs'};
-    window.open(urls[p], '_blank', 'noopener,noreferrer');
-  });
-  document.getElementById('provider').addEventListener('change',e=>{
-    const notes={
-      tickerlayer:'TickerLayer dipilih — API key/backend diperlukan',
-      xauapi:'xauapi dipilih — langganan dan API key diperlukan',
-      custom:'Sumber tersuai dipilih — perlu tetapkan API'
-    };
-    document.getElementById('feedStatus').value=notes[e.target.value];
-  });
-  document.getElementById('loadCsv').addEventListener('click',async()=>{
-    const file=document.getElementById('csvFile').files[0], msg=document.getElementById('csvMessage');
-    if(!file){msg.textContent='Pilih fail CSV dahulu.';return;}
-    try{
-      const raw=await file.text();
-      const rows=raw.trim().split(/\r?\n/).map(r=>r.split(',').map(s=>s.trim()));
-      if(rows.length<2)throw new Error('Fail kosong atau tiada baris data.');
-      const head=rows.shift().map(x=>x.toLowerCase().replace(/["']/g,''));
-      const idx=k=>head.indexOf(k);
-      ['time','open','high','low','close'].forEach(k=>{if(idx(k)<0)throw new Error('Lajur wajib tiada: '+k);});
-      const data=[];
-      for(const row of rows){
-        if(row.length<head.length)continue;
-        let t=row[idx('time')].replace(/^["']|["']$/g,'');
-        let time;
-        if(/^\d+(\.\d+)?$/.test(t)){time=Number(t);if(time>1e12)time=Math.floor(time/1000);}
-        else time=Math.floor(Date.parse(t)/1000);
-        const bar={time,open:Number(row[idx('open')]),high:Number(row[idx('high')]),low:Number(row[idx('low')]),close:Number(row[idx('close')])};
-        if(Number.isFinite(bar.time)&&['open','high','low','close'].every(k=>Number.isFinite(bar[k])))data.push(bar);
+
+  let currentTf = 5;
+  let csvLoaded = false;
+  let refreshTimer = null;
+
+  const $ = id => document.getElementById(id);
+
+  function status(text, good) {
+    $('dataState').textContent = text;
+    $('feedStatus').value = text;
+    $('topStatus').textContent = '● ' + text.toUpperCase();
+    $('topStatus').style.color = good ? '#a8f0ce' : '#f0ce7a';
+    $('topStatus').style.borderColor = good ? '#235f48' : '#5b4820';
+  }
+
+  function timeframeName(tf) {
+    return ({5:'M5',15:'M15',60:'H1',240:'H4'})[tf];
+  }
+
+  function aggregateH4(data) {
+    const groups = new Map();
+
+    for (const b of data) {
+      const start = Math.floor(b.time / 14400) * 14400;
+      let g = groups.get(start);
+
+      if (!g) {
+        g = {
+          time: start,
+          open: b.open,
+          high: b.high,
+          low: b.low,
+          close: b.close
+        };
+        groups.set(start, g);
+      } else {
+        g.high = Math.max(g.high, b.high);
+        g.low = Math.min(g.low, b.low);
+        g.close = b.close;
       }
-      data.sort((a,b)=>a.time-b.time);
-      const unique=[];for(const b of data){if(!unique.length||unique[unique.length-1].time!==b.time)unique.push(b);}
-      if(!unique.length)throw new Error('Tiada candle yang sah ditemui.');
-      candles.setData(unique);chart.timeScale().fitContent();
-      const last=unique[unique.length-1];
-      document.getElementById('lastPrice').textContent=last.close.toFixed(2);
-      document.getElementById('quoteText').textContent='CSV ujian: '+file.name+' • '+unique.length+' candle';
-      document.getElementById('dataState').textContent='CSV test';
-      document.getElementById('topStatus').textContent='● CSV UJIAN DIMUATKAN';
-      document.getElementById('topStatus').style.color='#a8f0ce';
-      document.getElementById('topStatus').style.borderColor='#235f48';
-      msg.textContent='Berjaya memuatkan '+unique.length+' candle CSV. Ini bukan data live.';
-      msg.className='small success';
-    }catch(err){msg.textContent='Ralat CSV: '+err.message;msg.className='small';}
+    }
+
+    return [...groups.values()];
+  }
+
+  async function loadLiveData() {
+    if (csvLoaded) return;
+
+    status('Menyambung data...', false);
+
+    try {
+      let interval, range;
+
+      if (currentTf === 5) {
+        interval = '5m';
+        range = '5d';
+      } else if (currentTf === 15) {
+        interval = '15m';
+        range = '5d';
+      } else {
+        interval = '1h';
+        range = '1mo';
+      }
+
+      const url =
+        'https://xaus.com/api/v1/chart?symbol=xau' +
+        '&range=' + range +
+        '&interval=' + interval;
+
+      const response = await fetch(url, { cache: 'no-store' });
+
+      if (!response.ok) {
+        throw new Error('API memberi respons HTTP ' + response.status);
+      }
+
+      const json = await response.json();
+
+      if (json.data_state &&
+          json.data_state.status === 'unavailable') {
+        throw new Error('Data harga tidak tersedia buat masa ini.');
+      }
+
+      const points = json.points || json.data || [];
+
+      let data = points.map(p => ({
+        time: Number(p.t),
+        open: Number(p.o),
+        high: Number(p.h),
+        low: Number(p.l),
+        close: Number(p.c)
+      })).filter(b =>
+        Number.isFinite(b.time) &&
+        Number.isFinite(b.open) &&
+        Number.isFinite(b.high) &&
+        Number.isFinite(b.low) &&
+        Number.isFinite(b.close)
+      );
+
+      data.sort((a, b) => a.time - b.time);
+
+      const unique = [];
+      for (const b of data) {
+        if (!unique.length ||
+            unique[unique.length - 1].time !== b.time) {
+          unique.push(b);
+        }
+      }
+
+      if (currentTf === 240) {
+        data = aggregateH4(unique);
+      } else {
+        data = unique;
+      }
+
+      if (!data.length) {
+        throw new Error('API tidak memulangkan candle yang sah.');
+      }
+
+      candles.setData(data);
+      chart.timeScale().fitContent();
+
+      const last = data[data.length - 1];
+      $('lastPrice').textContent = last.close.toFixed(2);
+      $('tfLabel').textContent = timeframeName(currentTf);
+      $('quoteText').textContent =
+        'XAU/USD • Data pihak ketiga • ' +
+        data.length + ' candle';
+
+      status('Data diterima — semak masa kemas kini', true);
+
+      $('csvMessage').textContent =
+        'Candle dimuatkan. Data ini bukan feed khusus JustMarkets.';
+      $('csvMessage').className = 'small success';
+
+    } catch (err) {
+      status('Sambungan gagal', false);
+      $('quoteText').textContent =
+        'Data tidak dapat dimuatkan. Cuba lagi sebentar.';
+      $('csvMessage').textContent = 'Ralat: ' + err.message;
+      $('csvMessage').className = 'small';
+    }
+  }
+
+  document.querySelectorAll('.tf').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tf').forEach(b =>
+        b.classList.remove('active')
+      );
+
+      btn.classList.add('active');
+      currentTf = Number(btn.dataset.tf);
+      csvLoaded = false;
+
+      $('tfLabel').textContent = timeframeName(currentTf);
+
+      if (refreshTimer) clearInterval(refreshTimer);
+
+      loadLiveData();
+      refreshTimer = setInterval(loadLiveData, 60000);
+    });
   });
+
+  $('provider').value = 'custom';
+  $('feedStatus').value = 'XAUS — percuma, tanpa API key';
+
+  $('providerInfo').onclick = () =>
+    window.open('https://github.com/misix-git/xaus-api',
+      '_blank', 'noopener,noreferrer');
+
+  $('provider').addEventListener('change', e => {
+    if (e.target.value === 'custom') {
+      $('feedStatus').value = 'XAUS — percuma, tanpa API key';
+    } else {
+      $('feedStatus').value =
+        'Penyedia dipilih; sambungan belum dikonfigurasi';
+    }
+  });
+
+  $('loadCsv').addEventListener('click', async () => {
+    const file = $('csvFile').files[0];
+    const msg = $('csvMessage');
+
+    if (!file) {
+      msg.textContent = 'Pilih fail CSV dahulu.';
+      return;
+    }
+
+    try {
+      const raw = await file.text();
+      const rows = raw.trim().split(/\r?\n/)
+        .map(r => r.split(',').map(s => s.trim()));
+
+      if (rows.length < 2) throw new Error('Fail CSV kosong.');
+
+      const head = rows.shift().map(x =>
+        x.toLowerCase().replace(/["']/g, '')
+      );
+
+      const idx = k => head.indexOf(k);
+
+      ['time','open','high','low','close'].forEach(k => {
+        if (idx(k) < 0) throw new Error('Lajur tiada: ' + k);
+      });
+
+      const data = [];
+
+      for (const row of rows) {
+        let t = row[idx('time')].replace(/^["']|["']$/g, '');
+        let time = /^\d+(\.\d+)?$/.test(t)
+          ? Number(t)
+          : Math.floor(Date.parse(t) / 1000);
+
+        if (time > 1e12) time = Math.floor(time / 1000);
+
+        const b = {
+          time,
+          open: Number(row[idx('open')]),
+          high: Number(row[idx('high')]),
+          low: Number(row[idx('low')]),
+          close: Number(row[idx('close')])
+        };
+
+        if (Number.isFinite(b.time) &&
+            ['open','high','low','close'].every(k =>
+              Number.isFinite(b[k]))) {
+          data.push(b);
+        }
+      }
+
+      data.sort((a,b) => a.time - b.time);
+
+      const unique = [];
+      for (const b of data) {
+        if (!unique.length ||
+            unique[unique.length - 1].time !== b.time) {
+          unique.push(b);
+        }
+      }
+
+      if (!unique.length) throw new Error('Tiada candle yang sah.');
+
+      csvLoaded = true;
+      if (refreshTimer) clearInterval(refreshTimer);
+
+      candles.setData(unique);
+      chart.timeScale().fitContent();
+
+      $('lastPrice').textContent =
+        unique[unique.length - 1].close.toFixed(2);
+      $('quoteText').textContent =
+        'CSV ujian • ' + unique.length + ' candle';
+
+      status('CSV ujian dimuatkan', true);
+      msg.textContent = 'CSV berjaya dimuatkan; bukan data live.';
+      msg.className = 'small success';
+
+    } catch (err) {
+      msg.textContent = 'Ralat CSV: ' + err.message;
+      msg.className = 'small';
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    chart.applyOptions({ width: el.clientWidth });
+  });
+
+  loadLiveData();
+  refreshTimer = setInterval(loadLiveData, 60000);
 })();
 </script>
+
   <!-- Rhd007GoldDigger Supabase Login -->
 <div id="rhd-auth" style="max-width:420px;margin:20px auto;padding:16px;background:#161b22;color:white;border-radius:12px;font-family:Arial">
   <h3>🏆 Rhd007GoldDigger</h3>
