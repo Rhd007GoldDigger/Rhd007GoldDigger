@@ -220,6 +220,7 @@ footer{max-width:1440px;margin:0 auto;padding:0 16px 20px;color:var(--muted);fon
       msg.textContent = "Tidak dapat menyemak akses. Sila cuba lagi.";
     } else if (data && data.approved === true) {
       msg.textContent = "Akses diluluskan. Akaun: " + user.email;
+      showApp(true);
     } else {
       msg.textContent = "Akaun anda belum diluluskan oleh Admin.";
     }
