@@ -200,11 +200,15 @@ footer{max-width:1440px;margin:0 auto;padding:0 16px 20px;color:var(--muted);fon
     SUPABASE_URL, SUPABASE_KEY
   );
 
-  async function checkAccess() {
-    const { data: { user } } = await client.auth.getUser();
+async function checkAccess() {
+  // Kunci aplikasi dahulu setiap kali semak akses
+  showApp(false);
 
-    if (!user) {
-      showApp(false);
+  try {
+    const { data: { user }, error: userError } =
+      await client.auth.getUser();
+
+    if (userError || !user) {
       msg.textContent = "Sila log masuk atau daftar.";
       logoutBtn.style.display = "none";
       return;
@@ -217,47 +221,27 @@ footer{max-width:1440px;margin:0 auto;padding:0 16px 20px;color:var(--muted);fon
       .maybeSingle();
 
     if (error) {
-      msg.textContent = "Tidak dapat menyemak akses. Sila cuba lagi.";
+      showApp(false);
+      msg.textContent =
+        "Tidak dapat menyemak akses. Aplikasi dikunci. Sila cuba lagi.";
     } else if (data && data.approved === true) {
-      msg.textContent = "Akses diluluskan. Akaun: " + user.email;
+      msg.textContent =
+        "Akses diluluskan. Akaun: " + user.email;
       showApp(true);
     } else {
-      msg.textContent = "Akaun anda belum diluluskan oleh Admin.";
+      showApp(false);
+      msg.textContent =
+        "Akaun anda belum diluluskan oleh Admin.";
     }
 
     logoutBtn.style.display = "inline-block";
-  }
-
-  loginBtn.onclick = async () => {
-    const email = document.getElementById("rhd-email").value.trim();
-    const password = document.getElementById("rhd-password").value;
-    const { error } = await client.auth.signInWithPassword({ email, password });
-
-    msg.textContent = error ? error.message : "Log masuk berjaya.";
-    if (!error) await checkAccess();
-  };
-
-  registerBtn.onclick = async () => {
-    const email = document.getElementById("rhd-email").value.trim();
-    const password = document.getElementById("rhd-password").value;
-
-    if (password.length < 6) {
-      msg.textContent = "Kata laluan mesti sekurang-kurangnya 6 aksara.";
-      return;
-    }
-
-    const { error } = await client.auth.signUp({ email, password });
-    msg.textContent = error
-      ? error.message
-      : "Pendaftaran dihantar. Semak e-mel jika pengesahan diperlukan. Akses menunggu kelulusan Admin.";
-  };
-
-  logoutBtn.onclick = async () => {
-    await client.auth.signOut();
-    msg.textContent = "Anda sudah log keluar.";
+  } catch (err) {
+    showApp(false);
+    msg.textContent =
+      "Ralat sambungan. Aplikasi dikunci. Sila cuba lagi.";
     logoutBtn.style.display = "none";
-  };
-
+  }
+}
   checkAccess();
 })();
 </script>
