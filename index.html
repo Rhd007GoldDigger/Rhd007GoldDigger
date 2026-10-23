@@ -150,5 +150,102 @@ footer{max-width:1440px;margin:0 auto;padding:0 16px 20px;color:var(--muted);fon
   });
 })();
 </script>
+  <!-- Rhd007GoldDigger Supabase Login -->
+<div id="rhd-auth" style="max-width:420px;margin:20px auto;padding:16px;background:#161b22;color:white;border-radius:12px;font-family:Arial">
+  <h3>🏆 Rhd007GoldDigger</h3>
+  <p>Log masuk atau daftar akaun untuk memohon akses.</p>
+
+  <input id="rhd-email" type="email" placeholder="E-mel"
+    style="width:100%;padding:12px;margin:6px 0;box-sizing:border-box">
+  <input id="rhd-password" type="password" placeholder="Kata laluan"
+    style="width:100%;padding:12px;margin:6px 0;box-sizing:border-box">
+
+  <button id="rhd-login" style="padding:10px;margin:5px 3px">Log Masuk</button>
+  <button id="rhd-register" style="padding:10px;margin:5px 3px">Daftar</button>
+  <button id="rhd-logout" style="padding:10px;margin:5px 3px;display:none">Log Keluar</button>
+  <p id="rhd-message" role="status">Sila log masuk untuk semak akses.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+  const SUPABASE_URL = "https://qnvxodhtbvgnksduxqng.supabase.co/rest/v1/";
+  const SUPABASE_KEY = "sb_publishable_IHQWfw5J6sb7llvCoC57gQ_3IWonMVZ";
+
+  const msg = document.getElementById("rhd-message");
+  const loginBtn = document.getElementById("rhd-login");
+  const registerBtn = document.getElementById("rhd-register");
+  const logoutBtn = document.getElementById("rhd-logout");
+
+  if (!window.supabase ||
+      SUPABASE_URL.includes("TAMPAL_") ||
+      SUPABASE_KEY.includes("TAMPAL_")) {
+    msg.textContent = "Sambungan belum dikonfigurasi.";
+    return;
+  }
+
+  const client = window.supabase.createClient(
+    SUPABASE_URL, SUPABASE_KEY
+  );
+
+  async function checkAccess() {
+    const { data: { user } } = await client.auth.getUser();
+
+    if (!user) {
+      msg.textContent = "Sila log masuk atau daftar.";
+      logoutBtn.style.display = "none";
+      return;
+    }
+
+    const { data, error } = await client
+      .from("app_access")
+      .select("approved")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error) {
+      msg.textContent = "Tidak dapat menyemak akses. Sila cuba lagi.";
+    } else if (data && data.approved === true) {
+      msg.textContent = "Akses diluluskan. Akaun: " + user.email;
+    } else {
+      msg.textContent = "Akaun anda belum diluluskan oleh Admin.";
+    }
+
+    logoutBtn.style.display = "inline-block";
+  }
+
+  loginBtn.onclick = async () => {
+    const email = document.getElementById("rhd-email").value.trim();
+    const password = document.getElementById("rhd-password").value;
+    const { error } = await client.auth.signInWithPassword({ email, password });
+
+    msg.textContent = error ? error.message : "Log masuk berjaya.";
+    if (!error) await checkAccess();
+  };
+
+  registerBtn.onclick = async () => {
+    const email = document.getElementById("rhd-email").value.trim();
+    const password = document.getElementById("rhd-password").value;
+
+    if (password.length < 6) {
+      msg.textContent = "Kata laluan mesti sekurang-kurangnya 6 aksara.";
+      return;
+    }
+
+    const { error } = await client.auth.signUp({ email, password });
+    msg.textContent = error
+      ? error.message
+      : "Pendaftaran dihantar. Semak e-mel jika pengesahan diperlukan. Akses menunggu kelulusan Admin.";
+  };
+
+  logoutBtn.onclick = async () => {
+    await client.auth.signOut();
+    msg.textContent = "Anda sudah log keluar.";
+    logoutBtn.style.display = "none";
+  };
+
+  checkAccess();
+})();
+</script>
 </body>
 </html>
