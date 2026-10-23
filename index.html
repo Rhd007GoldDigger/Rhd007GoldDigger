@@ -177,6 +177,18 @@ footer{max-width:1440px;margin:0 auto;padding:0 16px 20px;color:var(--muted);fon
   const registerBtn = document.getElementById("rhd-register");
   const logoutBtn = document.getElementById("rhd-logout");
 
+  const appMain = document.querySelector("main");
+  const appFooter = document.querySelector("footer");
+
+  // Sembunyikan aplikasi sehingga akses disahkan
+  appMain.style.display = "none";
+  appFooter.style.display = "none";
+
+  function showApp(allowed) {
+    appMain.style.display = allowed ? "" : "none";
+    appFooter.style.display = allowed ? "" : "none";
+  }
+
   if (!window.supabase ||
       SUPABASE_URL.includes("TAMPAL_") ||
       SUPABASE_KEY.includes("TAMPAL_")) {
