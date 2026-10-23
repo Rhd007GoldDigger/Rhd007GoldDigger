@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🏆Rhd007GoldDigger</title>
+<style>
+:root{color-scheme:dark;--bg:#090d16;--panel:#111827;--panel2:#0c1320;--line:#263244;--text:#e8eef8;--muted:#91a0b7;--gold:#e8b84a;--green:#27c281;--red:#f05c6c;--blue:#6ea8ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;border-bottom:1px solid var(--line);background:#0b111d;position:sticky;top:0;z-index:2}
+.brand{font-weight:800;letter-spacing:.2px}.brand span{color:var(--gold)}.sub{font-size:12px;color:var(--muted);margin-top:2px}
+.status{border:1px solid #5b4820;color:#f0ce7a;background:#211b0d;border-radius:99px;padding:6px 10px;font-size:12px;white-space:nowrap}
+main{max-width:1440px;margin:auto;padding:16px;display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:14px}
+.panel{border:1px solid var(--line);background:var(--panel);border-radius:14px;overflow:hidden}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.symbol{font-weight:750;font-size:16px}.quote{font-size:12px;color:var(--muted);margin-top:2px}.controls{display:flex;gap:6px;flex-wrap:wrap}
+button,select,input{background:var(--panel2);color:var(--text);border:1px solid #334155;border-radius:8px;padding:8px 10px;font:inherit}
+button{cursor:pointer}button.active{background:#3a2e12;border-color:var(--gold);color:#ffdc83}button.primary{background:var(--gold);color:#17130a;border-color:var(--gold);font-weight:750}
+#chart{height:500px;width:100%}.chart-note{padding:10px 14px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
+.sidebar{display:flex;flex-direction:column;gap:14px}.section-title{font-weight:750;padding:13px 14px;border-bottom:1px solid var(--line)}.section-body{padding:14px}.muted{color:var(--muted)}.small{font-size:12px}.field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}.field label{color:#bdc9db;font-size:12px}.field input,.field select{width:100%}.wide{width:100%}.pill{display:inline-block;padding:3px 7px;border-radius:6px;background:#182235;color:#a9c9ff;font-size:11px}.feature{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #202b3c}.feature:last-child{border:0}.dot{width:8px;height:8px;background:var(--gold);border-radius:50%;margin-top:5px;flex-shrink:0}
+.notice{border:1px solid #594b27;background:#211d12;color:#ecd99e;padding:11px;border-radius:9px;font-size:12px;margin-bottom:12px}.error{border-color:#6c333d;background:#251219;color:#ffb9c1}.success{border-color:#235f48;background:#10251e;color:#a8f0ce}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}.stat{background:#0d1421;border:1px solid #202c3e;border-radius:9px;padding:9px}.stat label{display:block;font-size:11px;color:var(--muted)}.stat strong{display:block;margin-top:3px;font-size:14px}
+footer{max-width:1440px;margin:0 auto;padding:0 16px 20px;color:var(--muted);font-size:11px}
+@media(max-width:900px){main{grid-template-columns:1fr;padding:10px}header{padding:12px}#chart{height:390px}.sidebar{display:grid;grid-template-columns:1fr}}@media(max-width:480px){.stats{grid-template-columns:1fr 1fr}#chart{height:340px}.status{font-size:10px}}
+</style>
+</head>
+<body>
+<header>
+  <div><div class="brand">🏆 <span>Rhd007GoldDigger</span></div><div class="sub">XAUUSD • Web App Prototype</div></div>
+  <div class="status" id="topStatus">● DATA FEED BELUM DISAMBUNG</div>
+</header>
+<main>
+  <section class="panel">
+    <div class="toolbar">
+      <div><div class="symbol">XAUUSD <span class="pill">SPOT / CFD FEED</span></div><div class="quote" id="quoteText">Harga dan candle akan muncul selepas sumber data disambungkan.</div></div>
+      <div class="controls"><button class="tf active" data-tf="5">M5</button><button class="tf" data-tf="15">M15</button><button class="tf" data-tf="60">H1</button><button class="tf" data-tf="240">H4</button></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><label>LAST PRICE</label><strong id="lastPrice">—</strong></div>
+      <div class="stat"><label>TIMEFRAME</label><strong id="tfLabel">M5</strong></div>
+      <div class="stat"><label>DATA STATUS</label><strong id="dataState">Disconnected</strong></div>
+    </div>
+    <div id="chart"></div>
+    <div class="chart-note">Carta menggunakan pustaka Lightweight Charts. Tiada candle atau signal rekaan dipaparkan. Sambungan data sebenar memerlukan API/backend yang sah.</div>
+  </section>
+  <aside class="sidebar">
+    <section class="panel">
+      <div class="section-title">Sumber data XAUUSD</div>
+      <div class="section-body">
+        <div class="notice">Cadangan permulaan: <b>TickerLayer</b> untuk menguji candle M5/M15 dan aliran harga melalui API. Harganya bersifat indikatif/CFD-derived, bukan harga universal semua broker. Kita akan sahkan kesesuaian sebelum digunakan untuk signal.</div>
+        <div class="field"><label>Penyedia data</label><select id="provider"><option value="tickerlayer">TickerLayer — API key diperlukan</option><option value="xauapi">xauapi — feed broker JustMarkets; pelan berbayar</option><option value="custom">Broker/API lain — sambungan tersuai</option></select></div>
+        <div class="field"><label>Status sambungan</label><input id="feedStatus" value="Belum disambungkan" readonly></div>
+        <button class="wide" id="providerInfo">Lihat dokumentasi penyedia</button>
+        <p class="small muted">Jangan masukkan API key produksi ke fail HTML ini. Untuk versi online, API key perlu disimpan di backend yang selamat.</p>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="section-title">Pindahan indikator</div>
+      <div class="section-body">
+        <div class="feature"><span class="dot"></span><div><b>Fasa 1 — Carta & candle</b><div class="small muted">Paparan carta, pilihan timeframe dan sambungan data.</div></div></div>
+        <div class="feature"><span class="dot"></span><div><b>Fasa 2 — EMA & Bollinger Bands</b><div class="small muted">Tetapan asal daripada skrip Pine.</div></div></div>
+        <div class="feature"><span class="dot"></span><div><b>Fasa 3 — Box sesi M15/H4</b><div class="small muted">Zon masa Asia/Kuala_Lumpur, waktu asal.</div></div></div>
+        <div class="feature"><span class="dot"></span><div><b>Fasa 4 — OB, RB/RS & dashboard</b><div class="small muted">Dipindahkan selepas logik dan hasil disahkan.</div></div></div>
+        <div class="notice error" style="margin-top:12px;margin-bottom:0">Signal BUY/SELL belum diaktifkan. Kita tidak akan mereka signal sebelum logik Pine dipindahkan dan diuji.</div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="section-title">Ujian candle (CSV)</div>
+      <div class="section-body">
+        <p class="small muted">Untuk ujian carta sementara, import CSV candle dengan lajur: <code>time,open,high,low,close</code>. Masa boleh berupa Unix timestamp (saat) atau tarikh ISO.</p>
+        <div class="field"><label>Pilih fail CSV</label><input type="file" id="csvFile" accept=".csv,text/csv"></div>
+        <button class="primary wide" id="loadCsv">Muatkan CSV ke carta</button>
+        <p class="small muted">CSV hanya untuk ujian visual; ia bukan sambungan live dan tidak menghasilkan signal.</p>
+        <div id="csvMessage" class="small muted" style="margin-top:8px"></div>
+      </div>
+    </section>
+  </aside>
+</main>
+<footer>Prototype awal • Tiada dagangan automatik • Tiada nasihat kewangan • Harga dan signal hanya boleh dipercayai selepas sumber data dan logik disahkan.</footer>
+<script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+(function(){
+  const el=document.getElementById('chart');
+  const chart=LightweightCharts.createChart(el,{
+    width:el.clientWidth,height:500,
+    layout:{background:{type:'solid',color:'#111827'},textColor:'#aab7ca'},
+    grid:{vertLines:{color:'#1d293a'},horzLines:{color:'#1d293a'}},
+    rightPriceScale:{borderColor:'#344155'},
+    timeScale:{borderColor:'#344155',timeVisible:true,secondsVisible:false},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal}
+  });
+  const candles=chart.addCandlestickSeries({
+    upColor:'#27c281',downColor:'#f05c6c',borderUpColor:'#27c281',
+    borderDownColor:'#f05c6c',wickUpColor:'#27c281',wickDownColor:'#f05c6c'
+  });
+  window.addEventListener('resize',()=>chart.applyOptions({width:el.clientWidth}));
+  let currentTf=5;
+  document.querySelectorAll('.tf').forEach(btn=>btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tf').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');currentTf=Number(btn.dataset.tf);
+    document.getElementById('tfLabel').textContent=({5:'M5',15:'M15',60:'H1',240:'H4'})[currentTf];
+    document.getElementById('csvMessage').textContent='Timeframe dipilih: '+document.getElementById('tfLabel').textContent+'. CSV tidak akan diagregatkan secara automatik.';
+  }));
+  document.getElementById('providerInfo').addEventListener('click',()=>{
+    const p=document.getElementById('provider').value;
+    const urls={tickerlayer:'https://tickerlayer.com/symbols/xauusd',xauapi:'https://xauapi.com/',custom:'https://twelvedata.com/docs'};
+    window.open(urls[p], '_blank', 'noopener,noreferrer');
+  });
+  document.getElementById('provider').addEventListener('change',e=>{
+    const notes={
+      tickerlayer:'TickerLayer dipilih — API key/backend diperlukan',
+      xauapi:'xauapi dipilih — langganan dan API key diperlukan',
+      custom:'Sumber tersuai dipilih — perlu tetapkan API'
+    };
+    document.getElementById('feedStatus').value=notes[e.target.value];
+  });
+  document.getElementById('loadCsv').addEventListener('click',async()=>{
+    const file=document.getElementById('csvFile').files[0], msg=document.getElementById('csvMessage');
+    if(!file){msg.textContent='Pilih fail CSV dahulu.';return;}
+    try{
+      const raw=await file.text();
+      const rows=raw.trim().split(/\r?\n/).map(r=>r.split(',').map(s=>s.trim()));
+      if(rows.length<2)throw new Error('Fail kosong atau tiada baris data.');
+      const head=rows.shift().map(x=>x.toLowerCase().replace(/["']/g,''));
+      const idx=k=>head.indexOf(k);
+      ['time','open','high','low','close'].forEach(k=>{if(idx(k)<0)throw new Error('Lajur wajib tiada: '+k);});
+      const data=[];
+      for(const row of rows){
+        if(row.length<head.length)continue;
+        let t=row[idx('time')].replace(/^["']|["']$/g,'');
+        let time;
+        if(/^\d+(\.\d+)?$/.test(t)){time=Number(t);if(time>1e12)time=Math.floor(time/1000);}
+        else time=Math.floor(Date.parse(t)/1000);
+        const bar={time,open:Number(row[idx('open')]),high:Number(row[idx('high')]),low:Number(row[idx('low')]),close:Number(row[idx('close')])};
+        if(Number.isFinite(bar.time)&&['open','high','low','close'].every(k=>Number.isFinite(bar[k])))data.push(bar);
+      }
+      data.sort((a,b)=>a.time-b.time);
+      const unique=[];for(const b of data){if(!unique.length||unique[unique.length-1].time!==b.time)unique.push(b);}
+      if(!unique.length)throw new Error('Tiada candle yang sah ditemui.');
+      candles.setData(unique);chart.timeScale().fitContent();
+      const last=unique[unique.length-1];
+      document.getElementById('lastPrice').textContent=last.close.toFixed(2);
+      document.getElementById('quoteText').textContent='CSV ujian: '+file.name+' • '+unique.length+' candle';
+      document.getElementById('dataState').textContent='CSV test';
+      document.getElementById('topStatus').textContent='● CSV UJIAN DIMUATKAN';
+      document.getElementById('topStatus').style.color='#a8f0ce';
+      document.getElementById('topStatus').style.borderColor='#235f48';
+      msg.textContent='Berjaya memuatkan '+unique.length+' candle CSV. Ini bukan data live.';
+      msg.className='small success';
+    }catch(err){msg.textContent='Ralat CSV: '+err.message;msg.className='small';}
+  });
+})();
+</script>
+</body>
+</html>
