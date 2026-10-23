@@ -242,6 +242,108 @@ async function checkAccess() {
     logoutBtn.style.display = "none";
   }
 }
+    loginBtn.onclick = async () => {
+    const email = document.getElementById("rhd-email").value.trim();
+    const password = document.getElementById("rhd-password").value;
+
+    msg.textContent = "Sedang log masuk...";
+
+    const { error } = await client.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      showApp(false);
+      msg.textContent = "Log masuk gagal: " + error.message;
+      return;
+    }
+
+    await checkAccess();
+  };
+
+  registerBtn.onclick = async () => {
+    const email = document.getElementById("rhd-email").value.trim();
+    const password = document.getElementById("rhd-password").value;
+
+    if (password.length < 6) {
+      msg.textContent = "Kata laluan mesti sekurang-kurangnya 6 aksara.";
+      return;
+    }
+
+    const { error } = await client.auth.signUp({ email, password });
+
+    msg.textContent = error
+      ? "Pendaftaran gagal: " + error.message
+      : "Pendaftaran berjaya dihantar. Semak e-mel jika diperlukan. Tunggu kelulusan Admin.";
+  };
+
+  logoutBtn.onclick = async () => {
+    showApp(false);
+
+    const { error } = await client.auth.signOut();
+
+    if (error) {
+      msg.textContent = "Log keluar gagal. Sila cuba lagi.";
+      await checkAccess();
+      return;
+    }
+
+    msg.textContent = "Anda sudah log keluar.";
+    logoutBtn.style.display = "none";
+  };
+
+    loginBtn.onclick = async () => {
+    const email = document.getElementById("rhd-email").value.trim();
+    const password = document.getElementById("rhd-password").value;
+
+    msg.textContent = "Sedang log masuk...";
+
+    const { error } = await client.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      showApp(false);
+      msg.textContent = "Log masuk gagal: " + error.message;
+      return;
+    }
+
+    await checkAccess();
+  };
+
+  registerBtn.onclick = async () => {
+    const email = document.getElementById("rhd-email").value.trim();
+    const password = document.getElementById("rhd-password").value;
+
+    if (password.length < 6) {
+      msg.textContent = "Kata laluan mesti sekurang-kurangnya 6 aksara.";
+      return;
+    }
+
+    const { error } = await client.auth.signUp({ email, password });
+
+    msg.textContent = error
+      ? "Pendaftaran gagal: " + error.message
+      : "Pendaftaran berjaya dihantar. Semak e-mel jika diperlukan. Tunggu kelulusan Admin.";
+  };
+
+  logoutBtn.onclick = async () => {
+    showApp(false);
+
+    const { error } = await client.auth.signOut();
+
+    if (error) {
+      msg.textContent = "Log keluar gagal. Sila cuba lagi.";
+      await checkAccess();
+      return;
+    }
+
+    msg.textContent = "Anda sudah log keluar.";
+    logoutBtn.style.display = "none";
+  };
+
   checkAccess();
 })();
 </script>
